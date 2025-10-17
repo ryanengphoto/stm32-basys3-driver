@@ -3,6 +3,7 @@ import os
 import sys
 import subprocess
 import signal
+import serial
 
 class CLI:
     BANNER = r"""
@@ -42,20 +43,24 @@ class CLI:
         print(self.BANNER)
         signal.signal(signal.SIGINT, self.sigint_handler)
 
-    def clear_screen(self):
+    def connect_serial(self) -> None:
+        stm32 = serial.Serial()
+        pass
+
+    def clear_screen(self) -> None:
         os.system('cls' if os.name == 'nt' else 'clear')
 
-    def sigint_handler(self, signum, frame):
+    def sigint_handler(self, signum, frame) -> None:
         print("\n^C detected — exiting.")
         sys.exit(0)
 
-    def run_shell_command(self, cmd):
+    def run_shell_command(self, cmd) -> None:
         try:
             subprocess.run(cmd, shell=True, check=False)
         except KeyboardInterrupt:
             print("\nCommand interrupted.")
 
-    def run(self):
+    def run(self) -> None:
         while True:
             try:
                 line = input("> ").strip()
@@ -69,7 +74,8 @@ class CLI:
             if not line:
                 continue
 
-            cmd = line.split(' ', maxsplit=3)[0]
+            split_line = line.split(' ', maxsplit=3)
+            cmd = split_line[0]
             
             if cmd in (self.HELP_CMDS):
                 print(self.HELP)
@@ -87,21 +93,119 @@ class CLI:
                 self.run_shell_command(line[1:].strip())
                 continue
 
+            # ********************************
+            # Arithmetic Commands
+            # ********************************
             if (cmd in self.ARITH_CMDS):
+                match cmd:
+                    case "add":
+                        if len(split_line) == 3:
+                            try:
+                                a = int(split_line[1])
+                                b = int(split_line[2])
+                                print(a + b)
+                            except ValueError:
+                                print("invalid operands, must be numbers")
+                        else:
+                            print("usage: add <num1> <num2>")
 
-                pass
+                    case "sub":
+                        if len(split_line) == 3:
+                            try:
+                                a = int(split_line[1])
+                                b = int(split_line[2])
+                                print(a - b)
+                            except ValueError:
+                                print("invalid operands, must be numbers")
+                        else:
+                            print("usage: sub <num1> <num2>")
+                        
+                    case "inc":
+                        if len(split_line) == 2:
+                            try:
+                                a = int(split_line[1])
+                                print(a + 1)
+                            except ValueError:
+                                print("invalid operand, must be number")
+                        else:
+                            print("usage: inc <num>")
+                        
+                    case "dec":
+                        if len(split_line) == 2:
+                            try:
+                                a = int(split_line[1])
+                                print(a - 1)
+                            except ValueError:
+                                print("invalid operand, must be number")
+                        else:
+                            print("usage: dec <num>")
+                
+                continue
 
+            # ********************************
+            # Logical Commands
+            # ********************************
             if (cmd in self.LOGIC_CMDS):
+                match cmd:
+                    case "and":
+                        if len(split_line) == 3:
+                            try:
+                                a = int(split_line[1])
+                                b = int(split_line[2])
+                                print(a & b)
+                            except ValueError:
+                                print("invalid operands, must be numbers")
+                        else:
+                            print("usage: and <num1> <num2>")
 
-                pass
+                    case "or":
+                        if len(split_line) == 3:
+                            try:
+                                a = int(split_line[1])
+                                b = int(split_line[2])
+                                print(a | b)
+                            except ValueError:
+                                print("invalid operands, must be numbers")
+                        else:
+                            print("usage: or <num1> <num2>")
+                        
+                    case "xor":
+                        if len(split_line) == 3:
+                            try:
+                                a = int(split_line[1])
+                                b = int(split_line[2])
+                                print(a ^ b)
+                            except ValueError:
+                                print("invalid operands, must be numbers")
+                        else:
+                            print("usage: xor <num1> <num2>")
+                        
+                    case "not":
+                        if len(split_line) == 2:
+                            try:
+                                a = int(split_line[1])
+                                print(~a)
+                            except ValueError:
+                                print("invalid operand, must be number")
+                        else:
+                            print("usage: not <num>")
+                
+                continue
 
+            # ********************************
+            # Shift Commands
+            # ********************************
             if (cmd in self.SHIFT_CMDS):
 
-                pass
+                continue
 
+
+            # ********************************
+            # Comparison Commands
+            # ********************************
             if (cmd in self.CMP_CMDS):
 
-                pass
+                continue
             
             
                 
