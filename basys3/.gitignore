@@ -22,6 +22,8 @@
 *.impl/
 *.synth/
 *.checkpoint
+*.sim/
+*.ip_user_files/
 *.ngc
 *.ngr
 *.lso

@@ -3,9 +3,9 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date: 10/20/2025 04:10:49 PM
+// Create Date: 10/20/2025 04:08:11 PM
 // Design Name: 
-// Module Name: alu_block
+// Module Name: tb_alu_block
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
@@ -20,7 +20,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module alu_block(
-    
+module tb_alu_block(
+
     );
 endmodule
