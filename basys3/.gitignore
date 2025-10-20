@@ -19,10 +19,8 @@
 
 # Simulation / synthesis outputs
 *.runs/
-*.sim/
 *.impl/
 *.synth/
-*.srcs/
 *.checkpoint
 *.ngc
 *.ngr
