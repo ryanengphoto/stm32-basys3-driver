@@ -6,6 +6,7 @@ module tb_alu_core(
     
     // tb pass/fail signals
     static int checked, errors;
+    logic [31:0] expected;
     
     // UUT signals
     logic clk, rst;
@@ -40,29 +41,57 @@ module tb_alu_core(
         end
     endtask     
        
-       
-    // Tests
+    // *****************************
+    // Tests   
+    // *****************************
+    task automatic test_and();
+        begin
+            $display("\nStarting AND test");
+            // inputs
+            @(posedge clk);
+            data_ready = 0; // pull low before changing in_a and in_b
+            alu_sel = 4'b0000;
+            in_a = 14'b00000000000010;
+            in_b = 14'b00000000000010;
+            @(posedge clk);
+            data_ready = 1; // pull high after changing in_a and in_b
+            
+            @(posedge data_valid);
+            
+            expected = in_a & in_b;
+            if (expected != out) errors++;
+            checked++;
+            $display("Expected: %d | Actual: %d", expected, out);
+            
+            @ (posedge clk);
+        end
+    endtask 
+    
     task test_add();
         begin
+            $display("\nStarting ADD test");
             // inputs
             @(posedge clk);
             data_ready = 0; // pull low before changing in_a and in_b
             alu_sel = 4'b0010;
             in_a = 14'b00000000000010;
             in_b = 14'b00000000000010;
+            @(posedge clk);
             data_ready = 1; // pull high after changing in_a and in_b
             
             @(posedge data_valid);
             
-            if ((in_a + in_b) != out) errors++;
+            expected = in_a + in_b;
+            if (expected != out) errors++;
             checked++;
-            $display("Expected: %d | Actual: %d", (in_a + in_b), out);
+            $display("Expected: %d | Actual: %d", expected, out);
             
             @ (posedge clk);
-            
-            
         end
     endtask 
+    
+    // Tests
+
     
        
    // START TESTING HERE
@@ -74,6 +103,8 @@ module tb_alu_core(
         rst = 0;
         pulse_reset();
         
+        test_and();
+        #20;
         test_add();
         #20;
         
