@@ -1,3 +1,9 @@
+/*
+Author: Ryan Eng 
+
+This module contains the logic for the ALU itself
+*/
+
 `timescale 1ns / 1ps
 
 module alu_core(
