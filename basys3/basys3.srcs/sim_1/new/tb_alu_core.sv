@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+
+
 module tb_alu_core(
 
     );
@@ -33,7 +35,7 @@ module tb_alu_core(
     );
     
     // reset task
-    task pulse_reset();
+    task automatic pulse_reset();
         begin
             rst = 1'b1;
             #20;
@@ -44,55 +46,7 @@ module tb_alu_core(
     // *****************************
     // Tests   
     // *****************************
-    task automatic test_and();
-        begin
-            $display("\nStarting AND test");
-            // inputs
-            @(posedge clk);
-            data_ready = 0; // pull low before changing in_a and in_b
-            alu_sel = 4'b0000;
-            in_a = 14'b00000000000010;
-            in_b = 14'b00000000000010;
-            @(posedge clk);
-            data_ready = 1; // pull high after changing in_a and in_b
-            
-            @(posedge data_valid);
-            
-            expected = in_a & in_b;
-            if (expected != out) errors++;
-            checked++;
-            $display("Expected: %d | Actual: %d", expected, out);
-            
-            @ (posedge clk);
-        end
-    endtask 
-    
-    task test_add();
-        begin
-            $display("\nStarting ADD test");
-            // inputs
-            @(posedge clk);
-            data_ready = 0; // pull low before changing in_a and in_b
-            alu_sel = 4'b0010;
-            in_a = 14'b00000000000010;
-            in_b = 14'b00000000000010;
-            @(posedge clk);
-            data_ready = 1; // pull high after changing in_a and in_b
-            
-            @(posedge data_valid);
-            
-            expected = in_a + in_b;
-            if (expected != out) errors++;
-            checked++;
-            $display("Expected: %d | Actual: %d", expected, out);
-            
-            @ (posedge clk);
-        end
-    endtask 
-    
-    // Tests
-
-    
+    `include "core_tests.sv"  
        
    // START TESTING HERE
    //initiate signals
@@ -105,9 +59,38 @@ module tb_alu_core(
         
         test_and();
         #20;
+        test_or();
+        #20;
         test_add();
         #20;
+        test_xor();
+        #20;
+        test_sll();
+        #20;
+        test_srl();
+        #20;
+        test_sub();
+        #20;
+        test_sra();
+        #20;
+        test_slt();
+        #20;
+        test_sltu();
+        #20;
+        test_nor();
+        #20;
+        test_inc();
+        #20;
+        test_dec();
+        #20;
+        test_rol();
+        #20;
+        test_ror();
+        #20;
+        test_nop();
+        #20;
         
+        $display("Checked: %d | Errors: %d", checked, errors);
         if (errors) begin
             display_fail();
         end
