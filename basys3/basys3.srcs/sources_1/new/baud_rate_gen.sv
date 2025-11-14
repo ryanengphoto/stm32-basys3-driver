@@ -1,48 +1,30 @@
-// modified from https://electronoobs.com/eng_circuitos_tut26_2.php
-/*
-Author: Ryan Eng 
-
-This module contains the logic for the baud rate tick generator for the UART interface
-*/
-
-module baud_rate_gen #(
-    parameter integer BPS = 115_200
+module baud16_gen #(
+    parameter int unsigned CLK_FREQ = 100_000_000,   // FPGA clock
+    parameter int unsigned BAUD     = 115_200         // desired UART baud
 )(
-    input  wire Clk,
-    input  wire Rst,
-    output wire Tick,          // 1-bit full period pulse
-    output wire Half_Tick      // pulse at half-bit (for mid-bit sampling)
+    input  logic clk,
+    input  logic rst,
+    output logic tick16              // 16× baud tick
 );
 
-    reg [31:0] baudRateReg = 0; 
-    reg tick_reg, half_tick_reg;
+    // divisor = clk / (baud × 16)
+    localparam int DIVISOR = CLK_FREQ / (BAUD * 16);
 
-    assign Tick      = tick_reg;
-    assign Half_Tick = half_tick_reg;
+    logic [$clog2(DIVISOR)-1:0] cnt;
 
-    localparam HALF_BPS = BPS / 2;
-
-    always @(posedge Clk or posedge Rst) begin
-        if (Rst) begin
-            baudRateReg    <= 0;
-            tick_reg       <= 0;
-            half_tick_reg  <= 0;
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            cnt    <= 0;
+            tick16 <= 0;
         end else begin
-            if (baudRateReg == BPS-1) begin
-                baudRateReg   <= 0;
-                tick_reg      <= 1;
-                half_tick_reg <= 0;
-            end
-            else begin
-                baudRateReg <= baudRateReg + 1;
-                tick_reg    <= 0;
-
-                if (baudRateReg == HALF_BPS-1)
-                    half_tick_reg <= 1;
-                else
-                    half_tick_reg <= 0;
+            if (cnt == DIVISOR-1) begin
+                cnt    <= 0;
+                tick16 <= 1;
+            end else begin
+                cnt    <= cnt + 1;
+                tick16 <= 0;
             end
         end
     end
-endmodule
 
+endmodule

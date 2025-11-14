@@ -21,7 +21,7 @@ module alu_core(
     // Internal signals
     // =====================
     logic [31:0] alu_result;
-    static int valid_internal; // used to delay data_valid
+    logic valid_internal; // used to delay data_valid
 
     // =====================
     // Initialization
@@ -42,10 +42,11 @@ module alu_core(
         end 
         else if (data_ready) begin
             out <= alu_result;
-            if (valid_internal != 0) begin
-                data_valid <= 1;
-            end
-            valid_internal = 1;
+            valid_internal <= 1;
+        end
+        else if (valid_internal) begin
+            data_valid <= 1;
+            valid_internal <= 0;
         end
         else begin
             valid_internal = 0;
