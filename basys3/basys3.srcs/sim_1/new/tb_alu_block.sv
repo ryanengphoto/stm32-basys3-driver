@@ -56,46 +56,30 @@ module tb_alu_block;
     // -------------------------
     task automatic send_byte(input logic [7:0] data, input logic is_last = 0);
         int i, j;
-
-        // Start bit
         tx = 1'b0;
-        for (j = 0; j < 16; j++) @(posedge tick16);
-
-        // Data bits
+        for (j = 0; j < 16; j++) @(posedge tick16); // start bit
         for (i = 0; i < 8; i++) begin
             tx = data[i];
             for (j = 0; j < 16; j++) @(posedge tick16);
         end
-
-        // Stop bit
-        tx = 1'b1;
-        if (is_last)
-            @(posedge tick16); // minimal stop for last byte
-        else
-            for (j = 0; j < 16; j++) @(posedge tick16);
+        tx = 1'b1; // stop bit
+        if (is_last) @(posedge tick16);
+        else for (j = 0; j < 16; j++) @(posedge tick16);
     endtask
 
     // -------------------------
     // Receive a byte (16× oversampling)
     // -------------------------
     task automatic recv_byte(output logic [7:0] data);
-        int i, j;
-
-        // Wait for start bit edge
-        @(negedge rx);
-
-        // Wait half a bit period to sample in middle of start bit
-        repeat (8) @(posedge tick16);
-
-        // Sample each data bit in middle
+        int i,j;
+        @(negedge rx); // wait start
+        repeat(8) @(posedge tick16); // middle of start
         for (i = 0; i < 8; i++) begin
-            repeat (16) @(posedge tick16);
+            repeat(16) @(posedge tick16);
             data[i] = rx;
-            $display("[%0t] Received bit %0d: %b", $time, i, data[i]);
+            //$display("[%0t] Received bit %0d: %b", $time, i, data[i]);
         end
-
-        // Wait stop bit
-        repeat (16) @(posedge tick16);
+        repeat(16) @(posedge tick16); // stop
     endtask
 
     // -------------------------
@@ -103,43 +87,48 @@ module tb_alu_block;
     // -------------------------
     task automatic recv_word(output logic [31:0] word);
         logic [7:0] b0, b1, b2, b3;
-        begin
-            recv_byte(b0);
-            recv_byte(b1);
-            recv_byte(b2);
-            recv_byte(b3);
+        recv_byte(b0);
+        recv_byte(b1);
+        recv_byte(b2);
+        recv_byte(b3);
+        word = {b3,b2,b1,b0}; // LSB first
+        $display("[%0t] Received 32-bit word = 0x%08h (%b)", $time, word, word);
+    endtask
 
-            word = {b3, b2, b1, b0}; // LSB-first
-            $display("[%0t] Received 32-bit word = 0x%08h (%b)", $time, word, word);
+    // -------------------------
+    // Send a 4-byte packet
+    // -------------------------
+    task automatic send_alu_packet(input logic [3:0] sel, input logic [13:0] a, input logic [13:0] b);
+        logic [31:0] word;
+        logic [7:0] byte0, byte1, byte2, byte3;
+        begin
+            // pack: [31:28] unused | [27:24] sel | [23:10] a | [9:0] b ?
+            word = {a, b, sel}; // adjust packing if needed
+            byte0 = word[7:0];
+            byte1 = word[15:8];
+            byte2 = word[23:16];
+            byte3 = word[31:24];
+            send_byte(byte0);
+            send_byte(byte1);
+            send_byte(byte2);
+            send_byte(byte3,1);
         end
     endtask
 
     // -------------------------
-    // Send a 4-byte packet: example ADD operation
+    // Test ALU operation
     // -------------------------
-    task automatic test_add_uart();
-        logic [7:0] byte_1 = 8'b00010010;
-        logic [7:0] byte_2 = 8'b00000000;
-        logic [7:0] byte_3 = 8'b00000100;
-        logic [7:0] byte_4 = 8'b00000000;
+    task automatic test_alu(input logic [3:0] sel, input logic [13:0] a, input logic [13:0] b, input logic [31:0] exp);
         begin
-            $display("[%0t] Sending 4-byte UART packet...", $time);
-
-            send_byte(byte_1);
-            send_byte(byte_2);
-            send_byte(byte_3);
-            send_byte(byte_4, 1);
-
-            $display("[%0t] UART packet sent. Waiting for 32-bit response...", $time);
-
+            $display("[%0t] Testing ALU sel=%0h, a=%0d, b=%0d ...", $time, sel, a, b);
+            send_alu_packet(sel,a,b);
             recv_word(rx_word);
-
-            expected = 32'd2;
-            if (rx_word !== expected) begin
-                $display("[%0t] Mismatch! Expected 0x%08h, got 0x%08h", $time, expected, rx_word);
+            expected = exp;
+            if(rx_word !== expected) begin
+                $display("[%0t] FAIL: got 0x%08h, expected 0x%08h", $time, rx_word, expected);
                 errors++;
             end else begin
-                $display("[%0t] Correct result: %0d", $time, rx_word);
+                $display("[%0t] PASS", $time);
                 checked++;
             end
         end
@@ -150,19 +139,43 @@ module tb_alu_block;
     // -------------------------
     initial begin
         $dumpfile("alu_block_tb.vcd");
-        $dumpvars(0, tb_alu_block);
-
-        checked = 0;
-        errors = 0;
-        tx = 1;
-
+        $dumpvars(0,tb_alu_block);
+        checked = 0; errors = 0; tx=1;
         pulse_reset();
 
-        test_add_uart();
+        // ADD
+        test_alu(4'h2, 14'd2, 14'd3, 32'd5);
+        // SUB
+        test_alu(4'h6, 14'd5, 14'd3, 32'd2);
+        // AND
+        test_alu(4'h0, 14'd7, 14'd3, 32'd3);
+        // OR
+        test_alu(4'h1, 14'd2, 14'd4, 32'd6);
+        // XOR
+        test_alu(4'h3, 14'd6, 14'd3, 32'd5);
+        // SLL
+        test_alu(4'h4, 14'd1, 14'd2, 32'd4);
+        // SRL
+        test_alu(4'h5, 14'd8, 14'd2, 32'd2);
+        // SLT
+        test_alu(4'h8, 14'd3, 14'd5, 32'd1);
+        test_alu(4'h8, 14'd5, 14'd3, 32'd0);
+        // SLTU
+        test_alu(4'h9, 14'd3, 14'd5, 32'd1);
+        test_alu(4'h9, 14'd5, 14'd3, 32'd0);
+        // ROL
+        test_alu(4'hD, 14'd1, 14'd1, 32'd2);
+        // ROR
+        test_alu(4'hE, 14'd2, 14'd1, 32'd1);
+        
+        $display("Tests completed. Checked: %0d, Errors: %0d", checked, errors);
 
-        $display("Checked: %d | Errors: %d", checked, errors);
-        if (errors) display_fail();
-        else display_pass();
+        if (errors) begin
+            display_fail();
+        end
+        else begin
+            display_pass();
+        end
 
         $finish;
     end
