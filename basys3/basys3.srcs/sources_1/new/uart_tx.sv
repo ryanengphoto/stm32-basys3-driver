@@ -1,12 +1,15 @@
+// Author: Ryan Eng
+// UART TX module with 16x oversampling
+
 `timescale 1ns / 1ps
 `include "typedefs.svh"
 
 module uart_tx (
     input  logic clk,
     input  logic rst,
-    input  logic tick16,        // 16× oversampled tick
+    input  logic tick16,
     input  logic data_valid,
-    input  logic [31:0] data,   // 4-byte packet
+    input  logic [31:0] data, 
     output logic tx
 );
 
@@ -19,25 +22,26 @@ module uart_tx (
     logic [1:0]  byte_counter;     // 0..3 per packet
     logic [31:0] tx_bits;          // full 4-byte packet
     logic        tx_bit;
+    logic        data_valid_latched; 
 
-    // Latch data_valid on clk
-    logic        data_valid_latched;
+    // Latch data_valid until baud tick
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             data_valid_latched <= 1'b0;
             tx_bits <= 32'd0;
         end else if (data_valid) begin
             data_valid_latched <= 1'b1;
-            tx_bits <= data;   // latch packet immediately
+            tx_bits <= data; 
         end else if (tx_state == STATE_START) begin
-            data_valid_latched <= 1'b0; // clear once TX starts
+            // unlatch
+            data_valid_latched <= 1'b0;
         end
     end
 
     assign tx = tx_bit;
 
     // -------------------------
-    // FSM (driven by tick16)
+    // TX FSM
     // -------------------------
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -49,7 +53,7 @@ module uart_tx (
         end else if (tick16) begin
             case (tx_state)
                 STATE_IDLE: begin
-                    tx_bit <= 1'b1;          // line idle
+                    tx_bit <= 1'b1;
                     sample_counter <= 0;
                     bit_counter    <= 0;
                     byte_counter   <= 0;
@@ -74,9 +78,9 @@ module uart_tx (
                     sample_counter <= sample_counter + 1;
                     if (sample_counter == 4'd15) begin
                         sample_counter <= 0;
-                        if (bit_counter == 3'd7) begin
+                        if (bit_counter == 3'd7) begin // final data bit of byte
                             bit_counter <= 0;
-                            tx_state <= STATE_DONE; // next is stop bit
+                            tx_state <= STATE_DONE; 
                         end else begin
                             bit_counter <= bit_counter + 1;
                         end

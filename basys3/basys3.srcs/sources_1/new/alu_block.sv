@@ -20,8 +20,8 @@ module alu_block #(
     // -------------------------
     // Internal signals
     // -------------------------
-    int packet_counter = 0;    // bit counter within byte
-    int message_counter = 0;   // byte counter within packet
+    int packet_counter;    // bit counter within byte
+    int message_counter;   // byte counter within packet
     uart_state_t uart_state;
     alu_packet_t alu_packet;
     logic [31:0] packet_bits;

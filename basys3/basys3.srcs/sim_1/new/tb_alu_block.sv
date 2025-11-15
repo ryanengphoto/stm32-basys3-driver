@@ -54,23 +54,25 @@ module tb_alu_block;
     // -------------------------
     // Send a byte over UART (16× oversampling)
     // -------------------------
-    task automatic send_byte(input logic [7:0] data);
+    task automatic send_byte(input logic [7:0] data, input logic is_last = 0);
         int i, j;
-        begin
-            // Start bit
-            tx = 1'b0;
-            for (j = 0; j < 16; j++) @(posedge tick16);
 
-            // Data bits (LSB first)
-            for (i = 0; i < 8; i++) begin
-                tx = data[i];
-                for (j = 0; j < 16; j++) @(posedge tick16);
-            end
+        // Start bit
+        tx = 1'b0;
+        for (j = 0; j < 16; j++) @(posedge tick16);
 
-            // Stop bit
-            tx = 1'b1;
+        // Data bits
+        for (i = 0; i < 8; i++) begin
+            tx = data[i];
             for (j = 0; j < 16; j++) @(posedge tick16);
         end
+
+        // Stop bit
+        tx = 1'b1;
+        if (is_last)
+            @(posedge tick16); // minimal stop for last byte
+        else
+            for (j = 0; j < 16; j++) @(posedge tick16);
     endtask
 
     // -------------------------
@@ -78,22 +80,22 @@ module tb_alu_block;
     // -------------------------
     task automatic recv_byte(output logic [7:0] data);
         int i, j;
-        begin
-            // Wait for start bit
-            @(negedge rx);
 
-            // Wait 8 ticks to align to middle of first data bit
-            for (j = 0; j < 8; j++) @(posedge tick16);
+        // Wait for start bit edge
+        @(negedge rx);
 
-            // Sample data bits
-            for (i = 0; i < 8; i++) begin
-                data[i] = rx;
-                for (j = 0; j < 16; j++) @(posedge tick16);
-            end
+        // Wait half a bit period to sample in middle of start bit
+        repeat (8) @(posedge tick16);
 
-            // Stop bit: wait 16 ticks (ignore value)
-            for (j = 0; j < 16; j++) @(posedge tick16);
+        // Sample each data bit in middle
+        for (i = 0; i < 8; i++) begin
+            repeat (16) @(posedge tick16);
+            data[i] = rx;
+            $display("[%0t] Received bit %0d: %b", $time, i, data[i]);
         end
+
+        // Wait stop bit
+        repeat (16) @(posedge tick16);
     endtask
 
     // -------------------------
@@ -126,13 +128,12 @@ module tb_alu_block;
             send_byte(byte_1);
             send_byte(byte_2);
             send_byte(byte_3);
-            send_byte(byte_4);
+            send_byte(byte_4, 1);
 
             $display("[%0t] UART packet sent. Waiting for 32-bit response...", $time);
 
             recv_word(rx_word);
 
-            // Example check
             expected = 32'd2;
             if (rx_word !== expected) begin
                 $display("[%0t] Mismatch! Expected 0x%08h, got 0x%08h", $time, expected, rx_word);
